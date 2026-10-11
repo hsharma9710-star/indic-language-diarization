@@ -24,13 +24,13 @@ and are **not** supported.
 ## Quick start
 
 ```bash
-git clone https://github.com/<your-user>/indic-language-diarization.git
+git clone https://github.com/hsharma9710-star/indic-language-diarization.git
 cd indic-language-diarization
 pip install -r requirements.txt            # PyTorch + transformers + soundfile ... (ffmpeg needed for mp3/mp4)
 
 # 1. get the model weights (433 MB) from the GitHub release of this repository and put them in ./weights/
 mkdir -p weights && curl -L -o weights/diarizer.pt \
-  https://github.com/<your-user>/indic-language-diarization/releases/download/v1.0/diarizer.pt
+  https://github.com/hsharma9710-star/indic-language-diarization/releases/download/v1.0/diarizer.pt
 
 # 2. diarize a file
 python -m ildiar.cli my_speech.wav -o out/ --languages ml kn      # you know the languages (recommended)
