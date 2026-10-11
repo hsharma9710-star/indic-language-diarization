@@ -61,20 +61,20 @@ write_rttm(r["segments"], r["name"], "out.rttm")
 print(r["segments"][:3])     # [(start_s, duration_s, class_id), ...]
 ```
 
-## Website (free)
+## Website (free, nothing uploaded)
 
-```bash
-pip install -r requirements.txt gradio
-python app.py            # open http://127.0.0.1:7860
-```
+**Live page: https://hsharma9710-star.github.io/indic-language-diarization-web/**
 
-To put it online **for free**, create a [Hugging Face Space](https://huggingface.co/spaces) (SDK *Gradio*, hardware *CPU basic*, no payment),
-upload this repository's files, and either upload `diarizer.pt` into the Space's `weights/` folder (Git LFS) or set the Space variable
-`ILDIAR_WEIGHTS_URL` to the release URL above. CPU inference took about 6 s per minute of audio on a 32-core server CPU (measured); the free Space has only 2 vCPUs, so
-expect it to be several times slower (not measured). The app refuses files longer than 10 minutes (`ILDIAR_MAX_SECONDS`).
+Open it, choose an audio file (wav / mp3 / m4a / flac, up to 5 minutes), optionally name the one or two Indian languages, and press
+*Diarize*. You get the RTTM (shown and downloadable), the language-coloured waveform (downloadable PNG) and one pooled audio file per
+language. The model runs **inside your browser** (ONNX Runtime Web / WebAssembly), so the audio never leaves your computer and nothing is
+stored. The first visit downloads the 137 MB model (cached afterwards); 30 s of audio take about 7 s on a typical laptop.
 
-Tested from a clean clone (Python 3.12, Linux): install, weight download, and one command each for a WAV file (GPU) and an MP3 file (CPU only)
-produced the RTTM, picture and pooled audio. A 21 s file takes about 1 s on a GPU or a many-core CPU; the app/CLI run on CPU alone.
+The page's source (including the 8-bit-quantised ONNX model) is in
+[indic-language-diarization-web](https://github.com/hsharma9710-star/indic-language-diarization-web); `scripts/export_onnx.py`
+(here) shows how the model was converted. The 8-bit model scored 27.6 % vs 28.6 % DER for the full-precision one on an 8-recording check.
+
+A server version for a local computer is also included: `pip install gradio && python app.py` (http://127.0.0.1:7860).
 
 ## How it works
 
