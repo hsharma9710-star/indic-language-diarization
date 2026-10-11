@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+weights/*.pt
+out/
+out_*/
+*.wav
+!examples/*.wav
+.venv/

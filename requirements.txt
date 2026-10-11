@@ -1,0 +1,8 @@
+torch>=2.1
+transformers>=4.40
+numpy
+scipy
+soundfile
+matplotlib
+# app.py only:
+gradio>=4.0
