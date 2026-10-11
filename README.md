@@ -26,7 +26,9 @@ and are **not** supported.
 ```bash
 git clone https://github.com/hsharma9710-star/indic-language-diarization.git
 cd indic-language-diarization
-# no GPU? install the small CPU build of PyTorch first (the default package bundles several GB of GPU libraries):\npip install torch --index-url https://download.pytorch.org/whl/cpu\npip install -r requirements.txt            # transformers, soundfile, scipy, matplotlib, gradio (ffmpeg needed for mp3/mp4)
+# no GPU? install the small CPU build of PyTorch first (the default package bundles several GB of GPU libraries):
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt            # transformers, soundfile, scipy, matplotlib, gradio (ffmpeg needed for mp3/mp4)
 
 # 1. get the model weights (433 MB) from the GitHub release of this repository and put them in ./weights/
 mkdir -p weights && curl -L -o weights/diarizer.pt \
@@ -71,7 +73,10 @@ upload this repository's files, and either upload `diarizer.pt` into the Space's
 `ILDIAR_WEIGHTS_URL` to the release URL above. CPU inference took about 6 s per minute of audio on a 32-core server CPU (measured); the free Space has only 2 vCPUs, so
 expect it to be several times slower (not measured). The app refuses files longer than 10 minutes (`ILDIAR_MAX_SECONDS`).
 
-Tested from a clean clone (Python 3.12, Linux): install, weight download, and one command each for a WAV file (GPU) and an MP3 file (CPU only)\nproduced the RTTM, picture and pooled audio. A 21 s file takes about 1 s on a GPU or a many-core CPU; the app/CLI run on CPU alone.\n\n## How it works
+Tested from a clean clone (Python 3.12, Linux): install, weight download, and one command each for a WAV file (GPU) and an MP3 file (CPU only)
+produced the RTTM, picture and pooled audio. A 21 s file takes about 1 s on a GPU or a many-core CPU; the app/CLI run on CPU alone.
+
+## How it works
 
 ```
 audio (16 kHz) ──► CLSRIL-23 wav2vec 2.0 encoder, fine-tuned (768-d every 20 ms)
