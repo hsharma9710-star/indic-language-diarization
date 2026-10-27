@@ -59,3 +59,14 @@ to real recordings.
 * Silence is poorly found on real recordings.
 * Input is processed in 30 s chunks; very short switches (< 0.4 s) are often missed or mislabelled.
 * Eight of CLSRIL-23's pre-training languages are not in VoxLingua107 and are not supported.
+
+## English second opinion (optional, command line)
+
+| Test | Before | After |
+|---|---|---|
+| 6 held-out real recordings (4-minute excerpts), DER | 24.7 % | 22.2 % |
+| all 12 excerpts tested, DER | 24.8 % | 21.8 % |
+| Hindi news clip (30 s), share of the English regions found | 0 % | about 50 % |
+
+Settings (word length 4, 4 s smoothing, threshold 0.25) were chosen on 6 of the 12 recordings and checked on the other 6. The Hindi clip
+check is one clip and approximate. The 25.7 % / 29.4 % figures above are unchanged.

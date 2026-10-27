@@ -116,7 +116,21 @@ What this means in practice:
   recordings were available. The constructed example above is easy by design.
 * Real silence is poorly found (the model was trained on artificial gaps).
 * Tested languages on real data: Malayalam and Kannada only. The other 11 languages are validated on synthetic data only.
+* **Hindi + English broadcast speech is a known weak case.** On a Hindi news clip with Indian-accented English the model labelled all of it
+  Hindi. An optional English check (`english_boost/`, command-line only) recovers part of this; see `english_boost/README.md`.
 * The model is a research prototype, not a production system. See `docs/RESULTS.md` for all numbers and limitations.
+
+## Optional: English second opinion
+
+`english_boost/english_boost.py` runs an English speech recogniser (`facebook/wav2vec2-base-960h`, downloaded on first use, about 360 MB)
+next to the diarizer and switches a bin to English when enough of the surrounding ~4 s is recognised as English words:
+
+```bash
+python english_boost/english_boost.py talk.mp3 -o out --languages hi
+```
+
+On 6 held-out real recordings (English + Malayalam / Kannada, 4-minute excerpts) the DER fell from 24.7 % to 22.2 % (settings chosen on 6 other
+recordings); on a 30 s Hindi news clip it found about half of the English that was previously missed. It is not in the website.
 
 ## Reproducing / retraining
 
