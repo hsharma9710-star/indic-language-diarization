@@ -8,7 +8,7 @@ an Indian language is switched to English when at least 25 % of the surrounding 
     python english_boost/english_boost.py talk.mp3 -o out --languages hi
 
 Outputs `*_before.rttm / .png` and `*_after.rttm / .png`, plus pooled audio of the corrected result. Needs `transformers` and `torch` (already required by the tool).
-The first run downloads the recogniser (about 360 MB). The website is not affected (the recogniser is not in the browser).
+The first run downloads the recogniser (about 360 MB). The website has the same check built in (an 8-bit ONNX copy of the recogniser, on by default).
 
 ## Results
 
