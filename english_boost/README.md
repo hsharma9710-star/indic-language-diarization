@@ -1,26 +1,25 @@
 # English second opinion for the diarizer
 
 Problem: on real Hindi + English news audio the diarizer labelled everything Hindi (English probability about 1 %).
-Fix: run an English speech recogniser (`facebook/wav2vec2-base-960h`) next to the diarizer. A 200 ms bin that the diarizer calls
-an Indian language is switched to English when at least 25 % of the surrounding ~4 s is made of recognised English words
-(words of 4+ letters from an English word list, plus common short words).
+Fix: Whisper-tiny's language detector runs on 4 s windows (one every 2 s). A speech bin that the diarizer calls an Indian language is
+switched to English where the interpolated English probability is at least 0.3.
 
     python english_boost/english_boost.py talk.mp3 -o out --languages hi
 
-Outputs `*_before.rttm / .png` and `*_after.rttm / .png`, plus pooled audio of the corrected result. Needs `transformers` and `torch` (already required by the tool).
-The first run downloads the recogniser (about 360 MB). The website has the same check built in (an 8-bit ONNX copy of the recogniser, on by default).
+Outputs `*_before.rttm / .png` and `*_after.rttm / .png`, plus pooled audio of the corrected result. The first run downloads
+`openai/whisper-tiny` (about 150 MB) from Hugging Face. The website has the same check built in (an ONNX copy, on by default).
 
 ## Results
 
 | Test | Before | After |
 |---|---|---|
-| Delhi news clip (30 s), English regions found | 0 % | 50 % (no English wrongly placed in the Hindi regions) |
-| 12 real recordings (English + Malayalam / Kannada), 4-minute excerpts, **6 held-out recordings** | DER 24.7 % | DER 22.2 % |
-| same, all 12 | DER 24.8 % | DER 21.8 % |
+| 6 held-out real recordings (English + Malayalam / Kannada, 4-minute excerpts), DER | 24.7 % | 16.4 % |
+| same 12 recordings, 6 used to choose the threshold, DER | 24.8 % | 17.7 % |
+| Hindi news clip (30 s): English found | 0 % | about 65 %, no English wrongly placed in the Hindi parts |
 
-Settings (word length 4, 4 s smoothing, threshold 0.25) were chosen on 6 of the 12 recordings only and then checked on the other 6.
+The window length, hop and threshold were chosen on 6 of the 12 recordings and checked on the other 6.
 
 ## Limits
-- Delhi regions were located by reading the recogniser's transcript, so that check is approximate and one clip only.
-- English spoken in a heavy accent is recognised less well, so some English is still missed (about half in the Delhi clip).
+- The Hindi news result is one 30 s clip and approximate; English at the very start of that clip is still labelled Hindi.
 - The 12 recordings are 4-minute excerpts (minutes 10-14) of the 27, not the full set; the published 25.7 % figure is unchanged.
+- The 4 s window means English stretches shorter than about 2 s can still be missed.

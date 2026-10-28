@@ -122,16 +122,16 @@ What this means in practice:
 
 ## Optional: English second opinion
 
-`english_boost/english_boost.py` runs an English speech recogniser (`facebook/wav2vec2-base-960h`, downloaded on first use, about 360 MB)
-next to the diarizer and switches a bin to English when enough of the surrounding ~4 s is recognised as English words:
+`english_boost/english_boost.py` runs Whisper-tiny's language detector (`openai/whisper-tiny`, downloaded on first use, about 150 MB) on 4 s windows
+and switches a speech bin to English where the English probability is at least 0.3:
 
 ```bash
 python english_boost/english_boost.py talk.mp3 -o out --languages hi
 ```
 
-On 6 held-out real recordings (English + Malayalam / Kannada, 4-minute excerpts) the DER fell from 24.7 % to 22.2 % (settings chosen on 6 other
-recordings); on a 30 s Hindi news clip it found about half of the English that was previously missed. The same check is built into the website
-(on by default, with a tick-box; it adds a one-time 122 MB download).
+On 6 held-out real recordings (English + Malayalam / Kannada, 4-minute excerpts) the DER fell from 24.7 % to 16.4 % (threshold chosen on 6 other
+recordings); on a 30 s Hindi news clip it finds about two thirds of the English that was previously missed. The same check is built into the website
+(on by default, with a tick-box; it adds a one-time 72 MB download).
 
 ## Reproducing / retraining
 

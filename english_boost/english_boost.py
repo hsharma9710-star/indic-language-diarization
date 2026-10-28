@@ -1,13 +1,13 @@
-"""Language diarization + English second opinion.
+"""Language diarization + English check with Whisper-tiny language detection.
 
-The diarizer sometimes labels Indian-accented English as the Indian language (e.g. Hindi news). This script adds an
-English-evidence check: an English CTC speech recogniser (facebook/wav2vec2-base-960h) is run on the audio, and a 200 ms
-bin that is currently labelled as an Indian language is switched to English when enough of the neighbouring ~4 s is
-recognised as real English words.
+The diarizer sometimes labels Indian-accented English as the Indian language (e.g. Hindi news). Here Whisper-tiny's language
+detector is run on 4 s windows (one every 2 s); a speech bin that the diarizer calls an Indian language is switched to English
+where the interpolated English probability is at least 0.3.
 
     python english_boost.py talk.mp3 -o out --languages hi
 
-Settings (min word length 4, 4 s smoothing, threshold 0.25) were chosen on 6 real recordings and checked on 6 others.
+Settings (4 s windows, 2 s hop, threshold 0.3) were chosen on 6 real recordings and checked on 6 others.
+The first run downloads openai/whisper-tiny (about 150 MB) from Hugging Face.
 """
 import argparse
 import os
@@ -25,62 +25,37 @@ from ildiar.weights import find_weights                   # noqa: E402
 from ildiar.audio import load_audio                       # noqa: E402
 from ildiar.outputs import plot_diarization, split_by_language, write_rttm   # noqa: E402
 
-STOP = set("to of is in on it as at be by he we so or an do go no my me up if am us the and but for you are was not can had has his her him she who did get got let say see too two one out our all any how why now yes".split())
-WORDS = set(open(os.path.join(HERE, "english_words.txt"), encoding="utf-8").read().split())
-
-
-def _load_asr():
-    from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
-    proc = Wav2Vec2Processor.from_pretrained("facebook/wav2vec2-base-960h")
-    model = Wav2Vec2ForCTC.from_pretrained("facebook/wav2vec2-base-960h").eval()
-    return proc, model
+NAME = "openai/whisper-tiny"
+WIN_S, HOP_S, THETA = 4.0, 2.0, 0.3
 
 
 @torch.no_grad()
-def recognised_words(wav, proc, model, chunk_s=20.0):
-    vocab = {v: k for k, v in proc.tokenizer.get_vocab().items()}
-    n = int(chunk_s * 16000)
-    words, off = [], 0.0
-    for a in range(0, len(wav), n):
-        x = wav[a:a + n]
-        if len(x) < 1600:
-            continue
-        x = (x - x.mean()) / (x.std() + 1e-7)
-        ids = model(torch.from_numpy(x.astype(np.float32))[None]).logits[0].argmax(-1).tolist()
-        cur, start, last, prev = "", None, None, -1
-        for t, i in enumerate(ids):
-            if i == prev:
-                continue
-            prev = i
-            ch = vocab[i]
-            if ch in ("<pad>", "<s>", "</s>", "<unk>"):
-                continue
-            if ch == "|":
-                if cur:
-                    words.append((a / 16000 + start * 0.02, a / 16000 + (last + 1) * 0.02, cur))
-                    cur = ""
-                continue
-            if not cur:
-                start = t
-            cur += ch.lower()
-            last = t
-        if cur:
-            words.append((a / 16000 + start * 0.02, a / 16000 + (last + 1) * 0.02, cur))
-    return words
+def english_probability(wav, n_bins, batch=8):
+    from transformers import WhisperForConditionalGeneration, WhisperProcessor
+    proc = WhisperProcessor.from_pretrained(NAME)
+    model = WhisperForConditionalGeneration.from_pretrained(NAME).eval()
+    lang_to_id = model.generation_config.lang_to_id
+    langs = list(lang_to_id.keys())
+    ids = torch.tensor([lang_to_id[l] for l in langs])
+    en = langs.index("<|en|>")
+    sot = model.generation_config.decoder_start_token_id
+    n, w, h = len(wav), int(WIN_S * 16000), int(HOP_S * 16000)
+    starts = list(range(0, max(n - w, 0) + 1, h)) or [0]
+    pen = []
+    for i in range(0, len(starts), batch):
+        chunk = [wav[s:s + w] for s in starts[i:i + batch]]
+        feats = proc.feature_extractor(chunk, sampling_rate=16000, return_tensors="pt").input_features
+        enc = model.model.encoder(feats).last_hidden_state
+        dec = model.model.decoder(input_ids=torch.full((len(chunk), 1), sot, dtype=torch.long), encoder_hidden_states=enc).last_hidden_state
+        pen.append(torch.softmax(model.proj_out(dec)[:, 0, :][:, ids], -1)[:, en].numpy())
+    pen = np.concatenate(pen)
+    centres = np.array([(s + w / 2) / 16000 for s in starts])
+    return np.interp((np.arange(n_bins) + 0.5) * BIN, centres, pen)
 
 
-def english_evidence(words, n_bins, min_len=4, smooth_bins=20):
-    v = np.zeros(n_bins)
-    for s, e, w in words:
-        if (w in WORDS and len(w) >= min_len) or w in STOP:
-            for b in range(int(s / BIN), min(int(np.ceil(e / BIN)), n_bins)):
-                v[b] += max(0.0, min(e, (b + 1) * BIN) - max(s, b * BIN)) / BIN
-    return np.convolve(np.minimum(v, 1.0), np.ones(smooth_bins) / smooth_bins, mode="same")
-
-
-def boost(labels, evidence, tau=0.25):
+def boost(labels, pen, theta=THETA):
     out = labels.copy()
-    out[(labels != SIL) & (evidence >= tau)] = ENG
+    out[(labels != SIL) & (labels != ENG) & (pen >= theta)] = ENG
     return out
 
 
@@ -90,7 +65,7 @@ def main():
     ap.add_argument("-o", "--out", default="out_boost")
     ap.add_argument("--languages", nargs="+", help="Indian language(s) present, e.g. hi")
     ap.add_argument("--weights", help="path to diarizer.pt (default: as for the main tool)")
-    ap.add_argument("--tau", type=float, default=0.25)
+    ap.add_argument("--theta", type=float, default=THETA)
     ap.add_argument("--plot-window", nargs=2, type=float, default=[0.0, 30.0])
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -99,11 +74,8 @@ def main():
     wav = np.asarray(wav, dtype=np.float32)
     name = os.path.splitext(os.path.basename(a.audio))[0]
     post = d.posteriors(wav)
-    base, chosen = decode(post, a.languages)
-    proc, model = _load_asr()
-    words = recognised_words(wav, proc, model)
-    ev = english_evidence(words, len(post))
-    new = boost(base, ev, a.tau)
+    base, _ = decode(post, a.languages)
+    new = boost(base, english_probability(wav, len(post)), a.theta)
     for tag, lab in (("before", base), ("after", new)):
         segs = to_segments(lab)
         write_rttm(segs, name, os.path.join(a.out, f"{name}_{tag}.rttm"))
